@@ -1,0 +1,8 @@
+{
+  "name": "Playground App Architect",
+  "description": "Speciális AI asszisztens játszótérkereső Android alkalmazások fejlesztéséhez, Google Maps integrációval.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ]
+}
