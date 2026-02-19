@@ -14,7 +14,7 @@
 .cxx
 local.properties
 
-# API kulcsok - SOHA ne tedd verziókövető rendszerbe!
-# local.properties tartalmazza a Maps API kulcsot
+# API kulcsok + Firebase konfig - SOHA ne tedd verziókövető rendszerbe!
 local.properties
 secrets.properties
+app/google-services.json

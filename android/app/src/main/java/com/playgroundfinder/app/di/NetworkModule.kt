@@ -2,6 +2,7 @@ package com.playgroundfinder.app.di
 
 import com.playgroundfinder.app.data.remote.OverpassApiService
 import com.playgroundfinder.app.data.remote.PlacesApiService
+import com.playgroundfinder.app.data.remote.WeatherApiService
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -64,5 +65,22 @@ object NetworkModule {
     @Singleton
     fun provideOverpassApiService(@Named("overpass") retrofit: Retrofit): OverpassApiService {
         return retrofit.create(OverpassApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    @Named("weather")
+    fun provideWeatherRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://api.openweathermap.org/data/2.5/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideWeatherApiService(@Named("weather") retrofit: Retrofit): WeatherApiService {
+        return retrofit.create(WeatherApiService::class.java)
     }
 }
