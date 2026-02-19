@@ -1,5 +1,6 @@
 package com.playgroundfinder.app.di
 
+import com.playgroundfinder.app.data.remote.OverpassApiService
 import com.playgroundfinder.app.data.remote.PlacesApiService
 import dagger.Module
 import dagger.Provides
@@ -10,6 +11,7 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -32,7 +34,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+    @Named("google")
+    fun provideGoogleRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
             .baseUrl("https://maps.googleapis.com/maps/api/")
             .client(okHttpClient)
@@ -42,7 +45,24 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun providePlacesApiService(retrofit: Retrofit): PlacesApiService {
+    @Named("overpass")
+    fun provideOverpassRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://overpass-api.de/api/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun providePlacesApiService(@Named("google") retrofit: Retrofit): PlacesApiService {
         return retrofit.create(PlacesApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideOverpassApiService(@Named("overpass") retrofit: Retrofit): OverpassApiService {
+        return retrofit.create(OverpassApiService::class.java)
     }
 }
