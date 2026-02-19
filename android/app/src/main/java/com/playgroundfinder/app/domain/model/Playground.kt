@@ -10,5 +10,13 @@ data class Playground(
     val userRatingsTotal: Int?,
     val photoReference: String? = null,
     val isOpenNow: Boolean? = null,
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val source: PlaygroundSource = PlaygroundSource.GOOGLE
 )
+
+enum class PlaygroundSource {
+    /** Google Places API eredmény */
+    GOOGLE,
+    /** OpenStreetMap Overpass API — közösség által jelölt, térképen esetleg nem látható */
+    OSM
+}
