@@ -8,4 +8,4 @@
 #   4. Hitelesítő adatok > API kulcs létrehozása
 #   5. (Ajánlott) Korlátozd a kulcsot az alkalmazás package nevére: com.playgroundfinder.app
 
-MAPS_API_KEY=ide_ird_a_sajat_kulcsodat
+MAPS_API_KEY=AIzaSyD2XlBLjaxPDciQqwLzKr8P0F1B1X_hKr0
