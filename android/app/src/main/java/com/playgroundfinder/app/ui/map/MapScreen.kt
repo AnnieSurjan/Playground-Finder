@@ -14,24 +14,32 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -64,6 +72,8 @@ private val BUDAPEST = LatLng(47.4979, 19.0402)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
+    onNavigateToSubscription: () -> Unit = {},
+    onLogout: () -> Unit = {},
     viewModel: MapViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -189,24 +199,58 @@ fun MapScreen(
                 }
             }
 
-            // Keresőmező felül
-            SearchBar(
-                query = state.searchQuery,
-                onQueryChange = { viewModel.onEvent(MapEvent.UpdateSearchQuery(it)) },
-                onSearch = {
-                    val location = state.userLocation?.let { "${it.latitude},${it.longitude}" }
-                    viewModel.onEvent(
-                        MapEvent.SearchPlaygrounds(
-                            query = state.searchQuery,
-                            location = location,
-                            radius = state.searchRadius
-                        )
-                    )
-                },
+            // Keresőmező + felső gombok egy sorban
+            Row(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(16.dp)
-            )
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                SearchBar(
+                    query = state.searchQuery,
+                    onQueryChange = { viewModel.onEvent(MapEvent.UpdateSearchQuery(it)) },
+                    onSearch = {
+                        val location = state.userLocation?.let { "${it.latitude},${it.longitude}" }
+                        viewModel.onEvent(
+                            MapEvent.SearchPlaygrounds(
+                                query = state.searchQuery,
+                                location = location,
+                                radius = state.searchRadius
+                            )
+                        )
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                // Műholdkép toggle
+                MapIconButton(
+                    onClick = { viewModel.onEvent(MapEvent.ToggleMapType) },
+                    selected = state.isHybridView,
+                    icon = { Icon(Icons.Filled.Layers, contentDescription = "Műholdkép") }
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                // Prémium
+                MapIconButton(
+                    onClick = onNavigateToSubscription,
+                    selected = state.subscriptionStatus.isPremium,
+                    icon = {
+                        Icon(
+                            Icons.Filled.Star,
+                            contentDescription = "Prémium",
+                            tint = if (state.subscriptionStatus.isPremium) Color(0xFFFFD700)
+                                   else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                // Kijelentkezés
+                MapIconButton(
+                    onClick = onLogout,
+                    selected = false,
+                    icon = { Icon(Icons.Filled.ExitToApp, contentDescription = "Kijelentkezés") }
+                )
+            }
 
             // Töltési indikátor
             if (state.isLoading) {
@@ -227,6 +271,9 @@ fun MapScreen(
             state.selectedPlayground?.let { playground ->
                 PlaygroundDetailsBottomSheet(
                     playground = playground,
+                    weather = state.weather,
+                    isWeatherLoading = state.isWeatherLoading,
+                    isPremium = state.subscriptionStatus.isPremium,
                     onDismiss = { viewModel.onEvent(MapEvent.SelectPlayground(null)) },
                     onNavigateClick = {
                         openGoogleMapsNavigation(context, playground.latitude, playground.longitude)
@@ -237,6 +284,23 @@ fun MapScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun MapIconButton(
+    onClick: () -> Unit,
+    selected: Boolean,
+    icon: @Composable () -> Unit
+) {
+    Surface(
+        shape = CircleShape,
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer
+                else MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+        shadowElevation = 2.dp,
+        modifier = Modifier.size(44.dp)
+    ) {
+        IconButton(onClick = onClick) { icon() }
     }
 }
 
@@ -251,7 +315,7 @@ private fun SearchBar(
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier,
         placeholder = { Text("Keress játszóteret...") },
         leadingIcon = {
             Icon(

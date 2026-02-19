@@ -14,4 +14,5 @@ sealed class MapEvent {
     data class ToggleFavorite(val playground: Playground) : MapEvent()
     object ErrorShown : MapEvent()
     data class UpdateSearchQuery(val query: String) : MapEvent()
+    object ToggleMapType : MapEvent()
 }
