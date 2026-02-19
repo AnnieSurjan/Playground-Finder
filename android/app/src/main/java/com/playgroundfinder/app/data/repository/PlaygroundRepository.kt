@@ -2,6 +2,7 @@ package com.playgroundfinder.app.data.repository
 
 import com.playgroundfinder.app.data.local.PlaygroundDao
 import com.playgroundfinder.app.data.local.PlaygroundEntity
+import com.playgroundfinder.app.BuildConfig
 import com.playgroundfinder.app.data.remote.PlacesApiService
 import com.playgroundfinder.app.data.remote.dto.PlaceDto
 import com.playgroundfinder.app.domain.model.Playground
@@ -17,17 +18,7 @@ class PlaygroundRepository @Inject constructor(
     private val placesApiService: PlacesApiService,
     private val playgroundDao: PlaygroundDao
 ) {
-    /**
-     * FONTOS: Cseréld le a saját Google Places API kulcsodra!
-     * Szerezd be: https://console.cloud.google.com/
-     * Engedélyezd: Places API
-     *
-     * Éles alkalmazásban használj BuildConfig-ot:
-     * BuildConfig.PLACES_API_KEY
-     * és add hozzá a build.gradle.kts-ben:
-     * buildConfigField("String", "PLACES_API_KEY", "\"your_key_here\"")
-     */
-    private val API_KEY = "YOUR_GOOGLE_PLACES_API_KEY"
+    private val API_KEY = BuildConfig.MAPS_API_KEY
 
     /**
      * Játszóterek keresése a felhasználó helyzetéhez közel.
