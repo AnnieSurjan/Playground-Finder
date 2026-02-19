@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Játszótér Kereső</string>
+    <string name="search_hint">Keress játszóteret...</string>
+    <string name="my_location">Saját helyzetem</string>
+    <string name="navigate">Útvonal</string>
+    <string name="add_to_favorites">Hozzáadás a kedvencekhez</string>
+    <string name="remove_from_favorites">Eltávolítás a kedvencekből</string>
+    <string name="open_now">Nyitva</string>
+    <string name="closed_now">Zárva</string>
+    <string name="rating">Értékelés</string>
+    <string name="reviews">értékelés</string>
+    <string name="unknown_address">Ismeretlen cím</string>
+    <string name="location_permission_rationale">A játszóterek kereséséhez hozzáférést kell adnunk a helymeghatározáshoz.</string>
+    <string name="location_not_found">Nem sikerült lekérni a helyzeted. Ellenőrizd a GPS-t.</string>
+    <string name="network_error">Hálózati hiba. Ellenőrizd az internetkapcsolatot.</string>
+    <string name="api_key_error">API kulcs hiba. Ellenőrizd a konfigurációt.</string>
+    <string name="no_results">Nem találtunk játszóteret ezen a területen.</string>
+    <string name="google_maps_not_found">Google Maps alkalmazás nem található.</string>
+</resources>
