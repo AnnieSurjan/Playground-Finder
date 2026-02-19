@@ -7,7 +7,10 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.maps.android.compose.MapType
 import com.playgroundfinder.app.data.repository.PlaygroundRepository
+import com.playgroundfinder.app.data.repository.SubscriptionRepository
+import com.playgroundfinder.app.data.repository.WeatherRepository
 import com.playgroundfinder.app.domain.model.Location
 import com.playgroundfinder.app.domain.model.Playground
 import com.playgroundfinder.app.util.Resource
@@ -21,6 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val repository: PlaygroundRepository,
+    private val subscriptionRepository: SubscriptionRepository,
+    private val weatherRepository: WeatherRepository,
     private val application: Application,
     private val fusedLocationProviderClient: FusedLocationProviderClient
 ) : ViewModel() {
@@ -29,8 +34,16 @@ class MapViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     init {
-        // Alapértelmezett keresés Budapest körül, amíg nincs felhasználói helyzet
         searchPlaygrounds("játszótér", "47.4979,19.0402", 10000)
+        observeSubscription()
+    }
+
+    private fun observeSubscription() {
+        viewModelScope.launch {
+            subscriptionRepository.subscriptionStatus.collectLatest { status ->
+                _state.value = _state.value.copy(subscriptionStatus = status)
+            }
+        }
     }
 
     fun onEvent(event: MapEvent) {
@@ -53,7 +66,11 @@ class MapViewModel @Inject constructor(
             }
 
             is MapEvent.SelectPlayground -> {
-                _state.value = _state.value.copy(selectedPlayground = event.playground)
+                _state.value = _state.value.copy(
+                    selectedPlayground = event.playground,
+                    weather = null
+                )
+                event.playground?.let { fetchWeather(it.latitude, it.longitude) }
             }
 
             is MapEvent.ToggleFavorite -> toggleFavoriteStatus(event.playground)
@@ -64,6 +81,16 @@ class MapViewModel @Inject constructor(
 
             is MapEvent.UpdateSearchQuery -> {
                 _state.value = _state.value.copy(searchQuery = event.query)
+            }
+
+            is MapEvent.ToggleMapType -> {
+                val newHybrid = !_state.value.isHybridView
+                _state.value = _state.value.copy(
+                    isHybridView = newHybrid,
+                    mapProperties = _state.value.mapProperties.copy(
+                        mapType = if (newHybrid) MapType.HYBRID else MapType.NORMAL
+                    )
+                )
             }
         }
     }
@@ -128,7 +155,27 @@ class MapViewModel @Inject constructor(
         }
     }
 
+    private fun fetchWeather(lat: Double, lng: Double) {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(isWeatherLoading = true)
+            when (val result = weatherRepository.getWeather(lat, lng)) {
+                is Resource.Success -> _state.value = _state.value.copy(
+                    weather = result.data,
+                    isWeatherLoading = false
+                )
+                is Resource.Error -> _state.value = _state.value.copy(isWeatherLoading = false)
+                is Resource.Loading -> Unit
+            }
+        }
+    }
+
     private fun toggleFavoriteStatus(playground: Playground) {
+        if (!_state.value.subscriptionStatus.isPremium) {
+            _state.value = _state.value.copy(
+                error = "A kedvencek mentése Prémium funkció. Iratkozz fel a beállításokban!"
+            )
+            return
+        }
         viewModelScope.launch {
             repository.toggleFavoritePlayground(playground)
 
