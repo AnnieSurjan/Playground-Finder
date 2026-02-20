@@ -13,6 +13,7 @@ import com.playgroundfinder.app.util.Resource
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -151,11 +152,7 @@ class PlaygroundRepository @Inject constructor(
     }
 
     private suspend fun getFavoriteIds(): Set<String> {
-        val favorites = mutableSetOf<String>()
-        playgroundDao.getFavoritePlaygrounds().collect { entities ->
-            favorites.addAll(entities.map { it.id })
-        }
-        return favorites
+        return playgroundDao.getFavoritePlaygrounds().first().map { it.id }.toSet()
     }
 
     // --- Haversine távolságszámítás (méterben) ---

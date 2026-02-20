@@ -324,8 +324,9 @@ private fun SearchBar(
             )
         },
         shape = RoundedCornerShape(28.dp),
-        colors = TextFieldDefaults.outlinedTextFieldColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
         ),
         singleLine = true,
         maxLines = 1
