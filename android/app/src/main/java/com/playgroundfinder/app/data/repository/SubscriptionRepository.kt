@@ -38,7 +38,7 @@ private val SUBSCRIPTION_KEY = stringPreferencesKey("subscription_status")
 @Singleton
 class SubscriptionRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val firestore: FirebaseFirestore,
+    private val firestore: FirebaseFirestore?,
     private val authRepository: AuthRepository
 ) : PurchasesUpdatedListener {
 
@@ -147,18 +147,19 @@ class SubscriptionRepository @Inject constructor(
         _subscriptionStatus.value = status
         // Helyi gyorsítótár frissítése
         context.dataStore.edit { prefs -> prefs[SUBSCRIPTION_KEY] = status.name }
-        // Firestore szinkronizáció (ha be van jelentkezve)
+        // Firestore szinkronizáció (ha be van jelentkezve és elérhető)
         authRepository.currentUserId?.let { uid ->
-            firestore.collection("users").document(uid)
-                .set(mapOf("subscriptionStatus" to status.name))
-                .await()
+            firestore?.collection("users")?.document(uid)
+                ?.set(mapOf("subscriptionStatus" to status.name))
+                ?.await()
         }
     }
 
     /** Firestore-ból betölti az előfizetési állapotot (bejelentkezés után) */
     suspend fun syncSubscriptionFromFirestore(userId: String) = withContext(Dispatchers.IO) {
         try {
-            val doc = firestore.collection("users").document(userId).get().await()
+            val fs = firestore ?: return@withContext
+            val doc = fs.collection("users").document(userId).get().await()
             val statusStr = doc.getString("subscriptionStatus") ?: "FREE"
             val status = SubscriptionStatus.valueOf(statusStr)
             _subscriptionStatus.value = status

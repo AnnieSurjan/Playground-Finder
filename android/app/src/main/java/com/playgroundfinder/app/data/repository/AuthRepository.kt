@@ -12,29 +12,38 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val FIREBASE_NOT_CONFIGURED =
+    "A Firebase még nincs beállítva. Kövesd a local.properties.example utasításait a google-services.json letöltéséhez."
+
 @Singleton
 class AuthRepository @Inject constructor(
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth?
 ) {
+    val isFirebaseAvailable: Boolean get() = firebaseAuth != null
+
     /** Aktuális bejelentkezett felhasználó valós idejű megfigyelése */
     val currentUser: Flow<FirebaseUser?> = callbackFlow {
-        val listener = FirebaseAuth.AuthStateListener { auth ->
-            trySend(auth.currentUser)
+        val auth = firebaseAuth
+        if (auth == null) {
+            trySend(null)
+            awaitClose {}
+            return@callbackFlow
         }
-        firebaseAuth.addAuthStateListener(listener)
-        awaitClose { firebaseAuth.removeAuthStateListener(listener) }
+        val listener = FirebaseAuth.AuthStateListener { a -> trySend(a.currentUser) }
+        auth.addAuthStateListener(listener)
+        awaitClose { auth.removeAuthStateListener(listener) }
     }
 
-    val isLoggedIn: Boolean get() = firebaseAuth.currentUser != null
+    val isLoggedIn: Boolean get() = firebaseAuth?.currentUser != null
 
-    val currentUserId: String? get() = firebaseAuth.currentUser?.uid
+    val currentUserId: String? get() = firebaseAuth?.currentUser?.uid
 
     /** Regisztráció e-mail + jelszó alapján */
     suspend fun register(name: String, email: String, password: String): Resource<User> {
+        val auth = firebaseAuth ?: return Resource.Error(FIREBASE_NOT_CONFIGURED)
         return try {
-            val result = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
+            val result = auth.createUserWithEmailAndPassword(email, password).await()
             val firebaseUser = result.user ?: return Resource.Error("Regisztráció sikertelen")
-            // Név beállítása
             val profileUpdate = userProfileChangeRequest { displayName = name }
             firebaseUser.updateProfile(profileUpdate).await()
             Resource.Success(firebaseUser.toDomain())
@@ -45,8 +54,9 @@ class AuthRepository @Inject constructor(
 
     /** Bejelentkezés e-mail + jelszó alapján */
     suspend fun login(email: String, password: String): Resource<User> {
+        val auth = firebaseAuth ?: return Resource.Error(FIREBASE_NOT_CONFIGURED)
         return try {
-            val result = firebaseAuth.signInWithEmailAndPassword(email, password).await()
+            val result = auth.signInWithEmailAndPassword(email, password).await()
             val firebaseUser = result.user ?: return Resource.Error("Bejelentkezés sikertelen")
             Resource.Success(firebaseUser.toDomain())
         } catch (e: Exception) {
@@ -55,12 +65,13 @@ class AuthRepository @Inject constructor(
     }
 
     /** Kijelentkezés */
-    fun logout() = firebaseAuth.signOut()
+    fun logout() = firebaseAuth?.signOut()
 
     /** Jelszó-visszaállító e-mail küldése */
     suspend fun sendPasswordReset(email: String): Resource<Unit> {
+        val auth = firebaseAuth ?: return Resource.Error(FIREBASE_NOT_CONFIGURED)
         return try {
-            firebaseAuth.sendPasswordResetEmail(email).await()
+            auth.sendPasswordResetEmail(email).await()
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.localizedMessage ?: "Sikertelen")
