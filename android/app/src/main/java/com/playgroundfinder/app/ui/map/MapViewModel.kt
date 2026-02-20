@@ -147,8 +147,14 @@ class MapViewModel @Inject constructor(
         location: String? = null,
         radius: Int? = 5000
     ) {
+        val isPremium = _state.value.subscriptionStatus.isPremium
         viewModelScope.launch {
-            repository.searchPlaygrounds(query, location, radius).collectLatest { result ->
+            repository.searchPlaygrounds(
+                query = query,
+                location = location,
+                radius = radius,
+                includeSatelliteDetection = isPremium
+            ).collectLatest { result ->
                 when (result) {
                     is Resource.Success -> _state.update { it.copy(
                         playgrounds = result.data ?: emptyList(),

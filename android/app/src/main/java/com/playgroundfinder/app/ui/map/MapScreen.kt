@@ -187,22 +187,25 @@ fun MapScreen(
                 }
 
                 // Játszótér jelölők
-                // Szín: piros = kedvenc | kék = OSM (térképen nem jelölt) | zöld = Google
+                // Szín: piros = kedvenc | kék = OSM | narancs = műhold AI | zöld = Google
                 state.playgrounds.forEach { playground ->
                     val markerHue = when {
                         playground.isFavorite -> BitmapDescriptorFactory.HUE_RED
                         playground.source == PlaygroundSource.OSM -> BitmapDescriptorFactory.HUE_AZURE
+                        playground.source == PlaygroundSource.SATELLITE_AI -> BitmapDescriptorFactory.HUE_ORANGE
                         else -> BitmapDescriptorFactory.HUE_GREEN
+                    }
+                    val snippet = when (playground.source) {
+                        PlaygroundSource.OSM -> "OSM · ${playground.address}"
+                        PlaygroundSource.SATELLITE_AI -> "Műhold (AI) · ${playground.address}"
+                        else -> playground.address
                     }
                     Marker(
                         state = MarkerState(
                             position = LatLng(playground.latitude, playground.longitude)
                         ),
                         title = playground.name,
-                        snippet = if (playground.source == PlaygroundSource.OSM)
-                            "OSM · ${playground.address}"
-                        else
-                            playground.address,
+                        snippet = snippet,
                         icon = BitmapDescriptorFactory.defaultMarker(markerHue),
                         onClick = {
                             viewModel.onEvent(MapEvent.SelectPlayground(playground))
@@ -379,6 +382,7 @@ private fun MapLegend(modifier: Modifier = Modifier) {
     ) {
         LegendItem(color = Color(0xFF4CAF50), label = "Google Maps")
         LegendItem(color = Color(0xFF2196F3), label = "OSM (rejtett)")
+        LegendItem(color = Color(0xFFFF9800), label = "Műhold AI")
         LegendItem(color = Color(0xFFE53935), label = "Kedvenc")
     }
 }

@@ -27,6 +27,7 @@ import kotlin.math.sqrt
 class PlaygroundRepository @Inject constructor(
     private val placesApiService: PlacesApiService,
     private val overpassApiService: OverpassApiService,
+    private val satelliteDetectionRepository: SatelliteDetectionRepository,
     private val playgroundDao: PlaygroundDao
 ) {
     private val API_KEY = BuildConfig.MAPS_API_KEY
@@ -34,13 +35,18 @@ class PlaygroundRepository @Inject constructor(
     /**
      * Játszóterek keresése a felhasználó helyzetéhez közel.
      * Google Places API + OpenStreetMap Overpass API eredményeit egyesíti.
-     * Az OSM forrásból azok a játszóterek is megjelennek, amelyek nincsenek
-     * feltüntetve a Google térképen — csak műholdképen láthatók.
+     * Prémium felhasználóknak opcionálisan műholdkép-alapú detektálást is futtat
+     * (Google Maps Static API + Cloud Vision API), amely az adatbázisokból hiányzó
+     * játszótereket is megtalálhatja.
+     *
+     * @param includeSatelliteDetection  true esetén a Cloud Vision API-t is meghívja
+     *                                   (csak prémium felhasználóknak ajánlott)
      */
     suspend fun searchPlaygrounds(
         query: String = "játszótér",
         location: String? = null,
-        radius: Int? = 5000
+        radius: Int? = 5000,
+        includeSatelliteDetection: Boolean = false
     ): Flow<Resource<List<Playground>>> = flow {
         emit(Resource.Loading())
 
@@ -48,7 +54,7 @@ class PlaygroundRepository @Inject constructor(
             val favoriteIds = getFavoriteIds()
             val searchRadius = radius ?: 5000
 
-            val (googlePlaygrounds, osmPlaygrounds) = coroutineScope {
+            val (googlePlaygrounds, osmPlaygrounds, satellitePlaygrounds) = coroutineScope {
                 val googleDeferred = async {
                     fetchGooglePlaygrounds(query, location, searchRadius, favoriteIds)
                 }
@@ -59,18 +65,36 @@ class PlaygroundRepository @Inject constructor(
                         emptyList()
                     }
                 }
-                Pair(googleDeferred.await(), osmDeferred.await())
+                val satelliteDeferred = async {
+                    if (includeSatelliteDetection && location != null) {
+                        val parts = location.split(",")
+                        val lat = parts[0].toDouble()
+                        val lng = parts[1].toDouble()
+                        satelliteDetectionRepository.detectPlaygrounds(lat, lng)
+                    } else {
+                        emptyList()
+                    }
+                }
+                Triple(googleDeferred.await(), osmDeferred.await(), satelliteDeferred.await())
             }
 
-            // OSM eredmények közül csak azokat tartjuk meg, amelyek
-            // nem fednek át meglévő Google-eredménnyel (50 m-es küszöb)
+            val knownPlaygrounds = googlePlaygrounds + osmPlaygrounds
+
+            // OSM: ne fedjen át Google-eredménnyel (50 m-es küszöb)
             val uniqueOsmPlaygrounds = osmPlaygrounds.filter { osm ->
                 googlePlaygrounds.none { google ->
                     haversineMeters(osm.latitude, osm.longitude, google.latitude, google.longitude) < 50.0
                 }
             }
 
-            emit(Resource.Success(googlePlaygrounds + uniqueOsmPlaygrounds))
+            // Műhold: ne fedjen át ismert (Google + OSM) eredménnyel (50 m-es küszöb)
+            val uniqueSatellitePlaygrounds = satellitePlaygrounds.filter { sat ->
+                knownPlaygrounds.none { known ->
+                    haversineMeters(sat.latitude, sat.longitude, known.latitude, known.longitude) < 50.0
+                }
+            }
+
+            emit(Resource.Success(googlePlaygrounds + uniqueOsmPlaygrounds + uniqueSatellitePlaygrounds))
         } catch (e: Exception) {
             emit(Resource.Error("Hálózati hiba: ${e.localizedMessage ?: "Ismeretlen hiba"}"))
         }

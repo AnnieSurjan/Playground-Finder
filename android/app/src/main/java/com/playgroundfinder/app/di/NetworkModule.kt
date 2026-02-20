@@ -2,6 +2,7 @@ package com.playgroundfinder.app.di
 
 import com.playgroundfinder.app.data.remote.OverpassApiService
 import com.playgroundfinder.app.data.remote.PlacesApiService
+import com.playgroundfinder.app.data.remote.VisionApiService
 import com.playgroundfinder.app.data.remote.WeatherApiService
 import dagger.Module
 import dagger.Provides
@@ -82,5 +83,27 @@ object NetworkModule {
     @Singleton
     fun provideWeatherApiService(@Named("weather") retrofit: Retrofit): WeatherApiService {
         return retrofit.create(WeatherApiService::class.java)
+    }
+
+    /**
+     * Cloud Vision API Retrofit példány.
+     * Előfeltétel: a Google Cloud Console-ban engedélyezni kell a "Cloud Vision API"-t
+     * ugyanahhoz a projekthez, amelyhez a MAPS_API_KEY tartozik.
+     */
+    @Provides
+    @Singleton
+    @Named("vision")
+    fun provideVisionRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://vision.googleapis.com/")
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideVisionApiService(@Named("vision") retrofit: Retrofit): VisionApiService {
+        return retrofit.create(VisionApiService::class.java)
     }
 }

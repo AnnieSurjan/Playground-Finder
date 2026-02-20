@@ -18,5 +18,7 @@ enum class PlaygroundSource {
     /** Google Places API eredmény */
     GOOGLE,
     /** OpenStreetMap Overpass API — közösség által jelölt, térképen esetleg nem látható */
-    OSM
+    OSM,
+    /** Google Cloud Vision API + műholdkép alapján detektált, adatbázisban nem szereplő játszótér */
+    SATELLITE_AI
 }
