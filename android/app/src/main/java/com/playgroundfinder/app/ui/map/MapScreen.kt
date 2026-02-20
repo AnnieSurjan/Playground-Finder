@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.CircularProgressIndicator
@@ -73,6 +74,7 @@ private val BUDAPEST = LatLng(47.4979, 19.0402)
 @Composable
 fun MapScreen(
     onNavigateToSubscription: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
     onLogout: () -> Unit = {},
     viewModel: MapViewModel = hiltViewModel()
 ) {
@@ -244,6 +246,13 @@ fun MapScreen(
                     }
                 )
                 Spacer(modifier = Modifier.width(6.dp))
+                // Profil
+                MapIconButton(
+                    onClick = onNavigateToProfile,
+                    selected = false,
+                    icon = { Icon(Icons.Filled.Person, contentDescription = "Profil") }
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 // Kijelentkezés
                 MapIconButton(
                     onClick = onLogout,
@@ -280,6 +289,19 @@ fun MapScreen(
                     },
                     onToggleFavorite = {
                         viewModel.onEvent(MapEvent.ToggleFavorite(playground))
+                    },
+                    onShare = {
+                        val text = buildString {
+                            append("🛝 ${playground.name}\n")
+                            append("📍 ${playground.address}\n")
+                            playground.rating?.let { append("⭐ ${"%.1f".format(it)} / 5.0\n") }
+                            append("https://www.google.com/maps/search/?api=1&query=${playground.latitude},${playground.longitude}")
+                        }
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Játszótér megosztása"))
                     }
                 )
             }
