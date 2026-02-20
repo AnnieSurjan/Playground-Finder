@@ -6,7 +6,12 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
-    id("com.google.gms.google-services")
+}
+
+// Google Services csak akkor aktív, ha a google-services.json már le van töltve
+// (Firebase Console > Project Settings > Android alkalmazás > google-services.json)
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
 }
 
 // API kulcsok beolvasása local.properties-ből
