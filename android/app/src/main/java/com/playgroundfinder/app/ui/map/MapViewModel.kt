@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.maps.android.compose.MapType
+import com.playgroundfinder.app.data.repository.ADMIN_EMAIL
 import com.playgroundfinder.app.data.repository.AuthRepository
 import com.playgroundfinder.app.data.repository.PlaygroundRepository
 import com.playgroundfinder.app.data.repository.SubscriptionRepository
@@ -20,6 +21,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -44,9 +46,17 @@ class MapViewModel @Inject constructor(
 
     private fun observeSubscription() {
         viewModelScope.launch {
-            subscriptionRepository.subscriptionStatus.collectLatest { status ->
-                // Admin fiók mindig Prémium
-                val effective = if (authRepository.isAdmin) SubscriptionStatus.PREMIUM_YEARLY else status
+            // combine: ha a Firebase betölti a usert VAGY változik a billing státusz,
+            // újraértékeljük — így az admin a bejelentkezés után azonnal prémiumot kap
+            combine(
+                subscriptionRepository.subscriptionStatus,
+                authRepository.currentUser
+            ) { status, user ->
+                if (user?.email?.equals(ADMIN_EMAIL, ignoreCase = true) == true)
+                    SubscriptionStatus.PREMIUM_YEARLY
+                else
+                    status
+            }.collectLatest { effective ->
                 _state.update { it.copy(subscriptionStatus = effective) }
             }
         }

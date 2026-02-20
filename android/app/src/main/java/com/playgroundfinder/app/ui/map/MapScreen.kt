@@ -57,10 +57,12 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap as GmsGoogleMap
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapEffect
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
@@ -175,6 +177,15 @@ fun MapScreen(
                 uiSettings = state.mapUiSettings,
                 properties = state.mapProperties
             ) {
+                // Közvetlen SDK hívás a mapType-ra — a properties alapú megközelítés
+                // nem mindig érvényesül az AndroidView belső renderelése miatt
+                MapEffect(state.isHybridView) { googleMap ->
+                    googleMap.mapType = if (state.isHybridView)
+                        GmsGoogleMap.MAP_TYPE_HYBRID
+                    else
+                        GmsGoogleMap.MAP_TYPE_NORMAL
+                }
+
                 // Játszótér jelölők
                 // Szín: piros = kedvenc | kék = OSM (térképen nem jelölt) | zöld = Google
                 state.playgrounds.forEach { playground ->
