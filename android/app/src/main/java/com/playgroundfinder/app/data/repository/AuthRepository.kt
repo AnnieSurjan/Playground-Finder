@@ -15,11 +15,17 @@ import javax.inject.Singleton
 private const val FIREBASE_NOT_CONFIGURED =
     "A Firebase még nincs beállítva. Kövesd a local.properties.example utasításait a google-services.json letöltéséhez."
 
+const val ADMIN_EMAIL = "surjaneniko@gmail.com"
+
 @Singleton
 class AuthRepository @Inject constructor(
     private val firebaseAuth: FirebaseAuth?
 ) {
     val isFirebaseAvailable: Boolean get() = firebaseAuth != null
+
+    val isAdmin: Boolean get() = firebaseAuth?.currentUser?.email == ADMIN_EMAIL
+    val currentUserEmail: String? get() = firebaseAuth?.currentUser?.email
+    val currentUserDisplayName: String? get() = firebaseAuth?.currentUser?.displayName
 
     /** Aktuális bejelentkezett felhasználó valós idejű megfigyelése */
     val currentUser: Flow<FirebaseUser?> = callbackFlow {

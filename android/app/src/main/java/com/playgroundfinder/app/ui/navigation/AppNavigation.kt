@@ -12,6 +12,7 @@ import com.playgroundfinder.app.ui.auth.AuthViewModel
 import com.playgroundfinder.app.ui.auth.LoginScreen
 import com.playgroundfinder.app.ui.auth.RegisterScreen
 import com.playgroundfinder.app.ui.map.MapScreen
+import com.playgroundfinder.app.ui.profile.ProfileScreen
 import com.playgroundfinder.app.ui.subscription.SubscriptionScreen
 
 object Routes {
@@ -19,6 +20,7 @@ object Routes {
     const val REGISTER     = "register"
     const val MAP          = "map"
     const val SUBSCRIPTION = "subscription"
+    const val PROFILE      = "profile"
 }
 
 @Composable
@@ -59,6 +61,9 @@ fun AppNavigation(
                 onNavigateToSubscription = {
                     navController.navigate(Routes.SUBSCRIPTION)
                 },
+                onNavigateToProfile = {
+                    navController.navigate(Routes.PROFILE)
+                },
                 onLogout = {
                     authViewModel.logout()
                     navController.navigate(Routes.LOGIN) {
@@ -70,6 +75,12 @@ fun AppNavigation(
 
         composable(Routes.SUBSCRIPTION) {
             SubscriptionScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(Routes.PROFILE) {
+            ProfileScreen(
                 onBack = { navController.popBackStack() }
             )
         }
