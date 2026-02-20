@@ -8,16 +8,21 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.maps.android.compose.MapType
+import com.playgroundfinder.app.data.repository.ADMIN_EMAIL
+import com.playgroundfinder.app.data.repository.AuthRepository
 import com.playgroundfinder.app.data.repository.PlaygroundRepository
 import com.playgroundfinder.app.data.repository.SubscriptionRepository
 import com.playgroundfinder.app.data.repository.WeatherRepository
 import com.playgroundfinder.app.domain.model.Location
 import com.playgroundfinder.app.domain.model.Playground
+import com.playgroundfinder.app.domain.model.SubscriptionStatus
 import com.playgroundfinder.app.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,6 +31,7 @@ class MapViewModel @Inject constructor(
     private val repository: PlaygroundRepository,
     private val subscriptionRepository: SubscriptionRepository,
     private val weatherRepository: WeatherRepository,
+    private val authRepository: AuthRepository,
     private val application: Application,
     private val fusedLocationProviderClient: FusedLocationProviderClient
 ) : ViewModel() {
@@ -40,8 +46,18 @@ class MapViewModel @Inject constructor(
 
     private fun observeSubscription() {
         viewModelScope.launch {
-            subscriptionRepository.subscriptionStatus.collectLatest { status ->
-                _state.value = _state.value.copy(subscriptionStatus = status)
+            // combine: ha a Firebase betölti a usert VAGY változik a billing státusz,
+            // újraértékeljük — így az admin a bejelentkezés után azonnal prémiumot kap
+            combine(
+                subscriptionRepository.subscriptionStatus,
+                authRepository.currentUser
+            ) { status, user ->
+                if (user?.email?.equals(ADMIN_EMAIL, ignoreCase = true) == true)
+                    SubscriptionStatus.PREMIUM_YEARLY
+                else
+                    status
+            }.collectLatest { effective ->
+                _state.update { it.copy(subscriptionStatus = effective) }
             }
         }
     }
@@ -49,14 +65,10 @@ class MapViewModel @Inject constructor(
     fun onEvent(event: MapEvent) {
         when (event) {
             is MapEvent.ToggleLocateUser -> {
-                _state.value = _state.value.copy(
-                    mapUiSettings = _state.value.mapUiSettings.copy(
-                        zoomControlsEnabled = true
-                    ),
-                    mapProperties = _state.value.mapProperties.copy(
-                        isMyLocationEnabled = event.enable
-                    )
-                )
+                _state.update { it.copy(
+                    mapUiSettings = it.mapUiSettings.copy(zoomControlsEnabled = true),
+                    mapProperties = it.mapProperties.copy(isMyLocationEnabled = event.enable)
+                ) }
             }
 
             is MapEvent.GetCurrentLocation -> getCurrentLocation()
@@ -66,31 +78,34 @@ class MapViewModel @Inject constructor(
             }
 
             is MapEvent.SelectPlayground -> {
-                _state.value = _state.value.copy(
-                    selectedPlayground = event.playground,
-                    weather = null
-                )
+                _state.update { it.copy(selectedPlayground = event.playground, weather = null) }
                 event.playground?.let { fetchWeather(it.latitude, it.longitude) }
             }
 
             is MapEvent.ToggleFavorite -> toggleFavoriteStatus(event.playground)
 
             is MapEvent.ErrorShown -> {
-                _state.value = _state.value.copy(error = null)
+                _state.update { it.copy(error = null) }
             }
 
             is MapEvent.UpdateSearchQuery -> {
-                _state.value = _state.value.copy(searchQuery = event.query)
+                _state.update { it.copy(searchQuery = event.query) }
             }
 
             is MapEvent.ToggleMapType -> {
-                val newHybrid = !_state.value.isHybridView
-                _state.value = _state.value.copy(
-                    isHybridView = newHybrid,
-                    mapProperties = _state.value.mapProperties.copy(
-                        mapType = if (newHybrid) MapType.HYBRID else MapType.NORMAL
+                if (!_state.value.subscriptionStatus.isPremium) {
+                    _state.update { it.copy(error = "A műholdkép Prémium funkció. Iratkozz fel a beállításokban!") }
+                    return
+                }
+                _state.update { current ->
+                    val newHybrid = !current.isHybridView
+                    current.copy(
+                        isHybridView = newHybrid,
+                        mapProperties = current.mapProperties.copy(
+                            mapType = if (newHybrid) MapType.HYBRID else MapType.NORMAL
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -103,27 +118,27 @@ class MapViewModel @Inject constructor(
 
         if (!hasPermission) return
 
-        _state.value = _state.value.copy(isLoading = true)
+        _state.update { it.copy(isLoading = true) }
 
         fusedLocationProviderClient.lastLocation
             .addOnSuccessListener { location ->
                 if (location != null) {
-                    _state.value = _state.value.copy(
+                    _state.update { it.copy(
                         userLocation = Location(location.latitude, location.longitude),
                         isLoading = false
-                    )
+                    ) }
                 } else {
-                    _state.value = _state.value.copy(
+                    _state.update { it.copy(
                         error = "Nem sikerült lekérni a helyzeted. Ellenőrizd, hogy be van-e kapcsolva a GPS.",
                         isLoading = false
-                    )
+                    ) }
                 }
             }
             .addOnFailureListener { e ->
-                _state.value = _state.value.copy(
+                _state.update { it.copy(
                     error = "Helymeghatározási hiba: ${e.localizedMessage}",
                     isLoading = false
-                )
+                ) }
             }
     }
 
@@ -135,21 +150,15 @@ class MapViewModel @Inject constructor(
         viewModelScope.launch {
             repository.searchPlaygrounds(query, location, radius).collectLatest { result ->
                 when (result) {
-                    is Resource.Success -> {
-                        _state.value = _state.value.copy(
-                            playgrounds = result.data ?: emptyList(),
-                            isLoading = false
-                        )
-                    }
-                    is Resource.Error -> {
-                        _state.value = _state.value.copy(
-                            error = result.message,
-                            isLoading = false
-                        )
-                    }
-                    is Resource.Loading -> {
-                        _state.value = _state.value.copy(isLoading = true)
-                    }
+                    is Resource.Success -> _state.update { it.copy(
+                        playgrounds = result.data ?: emptyList(),
+                        isLoading = false
+                    ) }
+                    is Resource.Error -> _state.update { it.copy(
+                        error = result.message,
+                        isLoading = false
+                    ) }
+                    is Resource.Loading -> _state.update { it.copy(isLoading = true) }
                 }
             }
         }
@@ -157,13 +166,10 @@ class MapViewModel @Inject constructor(
 
     private fun fetchWeather(lat: Double, lng: Double) {
         viewModelScope.launch {
-            _state.value = _state.value.copy(isWeatherLoading = true)
+            _state.update { it.copy(isWeatherLoading = true) }
             when (val result = weatherRepository.getWeather(lat, lng)) {
-                is Resource.Success -> _state.value = _state.value.copy(
-                    weather = result.data,
-                    isWeatherLoading = false
-                )
-                is Resource.Error -> _state.value = _state.value.copy(isWeatherLoading = false)
+                is Resource.Success -> _state.update { it.copy(weather = result.data, isWeatherLoading = false) }
+                is Resource.Error   -> _state.update { it.copy(isWeatherLoading = false) }
                 is Resource.Loading -> Unit
             }
         }
@@ -171,26 +177,21 @@ class MapViewModel @Inject constructor(
 
     private fun toggleFavoriteStatus(playground: Playground) {
         if (!_state.value.subscriptionStatus.isPremium) {
-            _state.value = _state.value.copy(
-                error = "A kedvencek mentése Prémium funkció. Iratkozz fel a beállításokban!"
-            )
+            _state.update { it.copy(error = "A kedvencek mentése Prémium funkció. Iratkozz fel a beállításokban!") }
             return
         }
         viewModelScope.launch {
             repository.toggleFavoritePlayground(playground)
-
-            // UI azonnali frissítése
-            val updatedPlaygrounds = _state.value.playgrounds.map { p ->
-                if (p.id == playground.id) p.copy(isFavorite = !p.isFavorite) else p
+            _state.update { current ->
+                current.copy(
+                    playgrounds = current.playgrounds.map { p ->
+                        if (p.id == playground.id) p.copy(isFavorite = !p.isFavorite) else p
+                    },
+                    selectedPlayground = current.selectedPlayground?.let { sel ->
+                        if (sel.id == playground.id) sel.copy(isFavorite = !sel.isFavorite) else sel
+                    }
+                )
             }
-            val updatedSelected = _state.value.selectedPlayground?.let { selected ->
-                if (selected.id == playground.id) selected.copy(isFavorite = !selected.isFavorite) else selected
-            }
-
-            _state.value = _state.value.copy(
-                playgrounds = updatedPlaygrounds,
-                selectedPlayground = updatedSelected
-            )
         }
     }
 }

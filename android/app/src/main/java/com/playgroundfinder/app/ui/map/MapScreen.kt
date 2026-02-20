@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.CircularProgressIndicator
@@ -56,10 +57,12 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap as GmsGoogleMap
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapEffect
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
@@ -73,6 +76,7 @@ private val BUDAPEST = LatLng(47.4979, 19.0402)
 @Composable
 fun MapScreen(
     onNavigateToSubscription: () -> Unit = {},
+    onNavigateToProfile: () -> Unit = {},
     onLogout: () -> Unit = {},
     viewModel: MapViewModel = hiltViewModel()
 ) {
@@ -173,6 +177,15 @@ fun MapScreen(
                 uiSettings = state.mapUiSettings,
                 properties = state.mapProperties
             ) {
+                // Közvetlen SDK hívás a mapType-ra — a properties alapú megközelítés
+                // nem mindig érvényesül az AndroidView belső renderelése miatt
+                MapEffect(state.isHybridView) { googleMap ->
+                    googleMap.mapType = if (state.isHybridView)
+                        GmsGoogleMap.MAP_TYPE_HYBRID
+                    else
+                        GmsGoogleMap.MAP_TYPE_NORMAL
+                }
+
                 // Játszótér jelölők
                 // Szín: piros = kedvenc | kék = OSM (térképen nem jelölt) | zöld = Google
                 state.playgrounds.forEach { playground ->
@@ -244,6 +257,13 @@ fun MapScreen(
                     }
                 )
                 Spacer(modifier = Modifier.width(6.dp))
+                // Profil
+                MapIconButton(
+                    onClick = onNavigateToProfile,
+                    selected = false,
+                    icon = { Icon(Icons.Filled.Person, contentDescription = "Profil") }
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 // Kijelentkezés
                 MapIconButton(
                     onClick = onLogout,
@@ -280,6 +300,19 @@ fun MapScreen(
                     },
                     onToggleFavorite = {
                         viewModel.onEvent(MapEvent.ToggleFavorite(playground))
+                    },
+                    onShare = {
+                        val text = buildString {
+                            append("🛝 ${playground.name}\n")
+                            append("📍 ${playground.address}\n")
+                            playground.rating?.let { append("⭐ ${"%.1f".format(it)} / 5.0\n") }
+                            append("https://www.google.com/maps/search/?api=1&query=${playground.latitude},${playground.longitude}")
+                        }
+                        val intent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                        context.startActivity(Intent.createChooser(intent, "Játszótér megosztása"))
                     }
                 )
             }

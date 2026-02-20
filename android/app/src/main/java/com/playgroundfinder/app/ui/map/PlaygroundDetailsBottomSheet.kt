@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Thermostat
 import androidx.compose.material.icons.filled.WaterDrop
@@ -58,7 +59,8 @@ fun PlaygroundDetailsBottomSheet(
     isPremium: Boolean,
     onDismiss: () -> Unit,
     onNavigateClick: () -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    onShare: () -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     val scope = rememberCoroutineScope()
@@ -210,7 +212,23 @@ fun PlaygroundDetailsBottomSheet(
                     )
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Megosztás gomb (prémium)
+                OutlinedButton(
+                    onClick = { if (isPremium) onShare() },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = if (!isPremium) Icons.Filled.Lock else Icons.Filled.Share,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (!isPremium) "Prémium" else "Megoszt")
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Útvonal gomb
                 Button(

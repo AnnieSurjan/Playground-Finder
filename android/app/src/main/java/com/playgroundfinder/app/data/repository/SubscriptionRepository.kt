@@ -27,8 +27,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -83,8 +85,12 @@ class SubscriptionRepository @Inject constructor(
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
             .build()
-        val result = billingClient.queryPurchasesAsync(params)
-        handlePurchases(result.purchasesList)
+        val purchases = suspendCancellableCoroutine<List<Purchase>> { cont ->
+            billingClient.queryPurchasesAsync(params) { _, purchasesList ->
+                cont.resume(purchasesList)
+            }
+        }
+        handlePurchases(purchases)
     }
 
     /**
@@ -99,8 +105,12 @@ class SubscriptionRepository @Inject constructor(
                 .build()
         )
         val params = QueryProductDetailsParams.newBuilder().setProductList(productList).build()
-        val detailsResult = billingClient.queryProductDetails(params)
-        val productDetails: ProductDetails = detailsResult.productDetailsList?.firstOrNull() ?: return@withContext
+        val productDetails: ProductDetails? = suspendCancellableCoroutine { cont ->
+            billingClient.queryProductDetailsAsync(params) { _, productDetailsList ->
+                cont.resume(productDetailsList?.firstOrNull())
+            }
+        }
+        productDetails ?: return@withContext
 
         val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: return@withContext
         val flowParams = BillingFlowParams.newBuilder()
@@ -131,7 +141,9 @@ class SubscriptionRepository @Inject constructor(
                     val ackParams = AcknowledgePurchaseParams.newBuilder()
                         .setPurchaseToken(purchase.purchaseToken)
                         .build()
-                    billingClient.acknowledgePurchase(ackParams)
+                    suspendCancellableCoroutine<Unit> { cont ->
+                        billingClient.acknowledgePurchase(ackParams) { cont.resume(Unit) }
+                    }
                 }
                 val status = when {
                     purchase.products.contains(BillingProducts.PREMIUM_YEARLY)  -> SubscriptionStatus.PREMIUM_YEARLY

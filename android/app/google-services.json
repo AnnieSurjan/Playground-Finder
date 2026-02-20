@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "202182581987",
+    "project_id": "playground-finder-75fe7",
+    "storage_bucket": "playground-finder-75fe7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:202182581987:android:f46478c61de42ff4ae6fd6",
+        "android_client_info": {
+          "package_name": "com.playgroundfinder.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDrie3pWT_GapL_TqWUbhEW_gw4JNH9bos"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
